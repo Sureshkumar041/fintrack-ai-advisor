@@ -924,3 +924,159 @@ container.py → wires dependencies
 Uvicorn      → runs the FastAPI application
 Docker       → provides the runtime environment
 ```
+
+## 7. API / Request Flow
+
+### 1. Basic flow
+
+```text
+Frontend
+   ↓
+HTTP Request
+   ↓
+API Route
+   ↓
+Application Service
+   ↓
+Domain / Ports
+   ↓
+Infrastructure
+   ↓
+DB / Redis / Qdrant / External Service
+   ↓
+Infrastructure
+   ↓
+Service
+   ↓
+API Route
+   ↓
+HTTP Response
+   ↓
+Frontend
+```
+
+### 2. Example: Login
+
+### 3. API calls Service
+
+### 4. Service calls a Port
+
+### 5. Infrastructure implementation runs
+
+### 6. Database returns data
+
+### 7. Service continues processing
+
+### 8. API prepares response
+
+- Sets authentication cookies
+- Converts the user into `UserResponse`
+- Returns HTTP response
+
+### 9. Frontend receives response
+
+Finally:
+```text
+PostgreSQL
+    ↓
+Repository
+    ↓
+Service
+    ↓
+API
+    ↓
+HTTP Response
+    ↓
+Next.js
+    ↓
+User
+```
+
+#### Complete Login Request Flow
+
+```text
+                FRONTEND
+                   │
+                   │ POST /auth/login
+                   ↓
+          ┌──────────────────┐
+          │ api/v1/auth.py   │
+          │ API Route        │
+          └────────┬─────────┘
+                   ↓
+          ┌──────────────────┐
+          │   AuthService    │
+          │ Application      │
+          └────────┬─────────┘
+                   ↓
+          ┌──────────────────┐
+          │ UserRepository   │
+          │ Domain Port      │
+          └────────┬─────────┘
+                   ↓
+       ┌─────────────────────────┐
+       │ SqlAlchemyUserRepository│
+       │ Infrastructure          │
+       └────────────┬────────────┘
+                    ↓
+                SQLAlchemy
+                    ↓
+               PostgreSQL
+                    │
+                    ↓
+              UserRecord
+                    ↓
+               UserAccount
+                    ↓
+              AuthService
+                    ↓
+          Token + AuthenticatedUser
+                    ↓
+              API Response
+                    ↓
+                Frontend
+```
+
+### 10. What about an AI request?
+
+This is where your project becomes more interesting.
+
+Instead of:
+```text
+Service → Repository → PostgreSQL
+```
+
+an AI request may look more like:
+```text
+Frontend
+   ↓
+API Route
+   ↓
+Application Service
+   ↓
+LangGraph
+   ↓
+Agent
+   ├── RAG → Qdrant
+   ├── Prompt
+   └── LLM
+   ↓
+Reflection / Audit
+   ↓
+Final result
+   ↓
+API
+   ↓
+Frontend
+```
+So **not every API request goes to PostgreSQL.**
+
+Depending on the feature, it may interact with:
+
+- PostgreSQL
+- Redis
+- Qdrant
+- LLM
+- AI agents
+- External services
+- Or several of them.
