@@ -728,3 +728,199 @@ Infrastructure → connects
 Core → configures/wires
 Main → starts
 ```
+
+## 6. How the Backend Starts
+
+Project runs the backend through **Docker Compose.**
+
+Command to start application:
+```bash
+docker compose up --build
+```
+
+The important flow is:
+```text
+docker compose
+      ↓
+Build Backend Image
+      ↓
+Start API Container
+      ↓
+Start Python Application
+      ↓
+main.py
+      ↓
+FastAPI App
+      ↓
+Register Routers
+      ↓
+Backend Ready
+```
+
+### 1. Docker starts the API container
+
+From your `docker-compose.yml`:
+```text
+api:
+  build:
+    context: ./backend
+```
+
+Docker uses:
+```text
+backend/Dockerfile
+```
+to build the Python backend image.
+
+The Dockerfile sets up:
+```text
+Python 3.12
+Poetry
+Dependencies
+Application files
+Non-root user
+```
+
+### 2. Container starts Python
+
+Your Dockerfile has a startup command/entrypoint that eventually starts the FastAPI application.
+
+- Conceptually:
+```text
+Docker Container
+      ↓
+Python
+      ↓
+FastAPI / Uvicorn
+      ↓
+app.main
+```
+
+**Uvicorn** = ASGI server used to run FastAPI.
+
+### 3. `main.py` creates the FastAPI application
+
+Project `backend/app/main.py` is the application entry point.
+
+Conceptually:
+```python
+app = FastAPI(...)
+```
+
+So:
+```text
+main.py
+   ↓
+FastAPI application object
+```
+
+### 4. Router gets registered
+
+`main.py`connects the API router.
+
+```text
+main.py
+   ↓
+api/v1/router.py
+```
+
+### 5. Dependency Injection Container
+
+The application also has the DI container:
+
+> core/container.py
+
+It prepares dependencies such as:
+```text
+Settings
+   ↓
+Database Engine
+   ↓
+Session Factory
+
+Redis Client
+Qdrant Client
+Services
+Repositories
+```
+
+For Auth:
+```text
+container
+   ↓
+build_auth_service()
+   ↓
+AuthService
+   ├── UserRepository
+   ├── PasswordHasher
+   ├── TokenService
+   ├── AccessTokenBlocklist
+   └── RefreshSessionStore
+```
+
+### 6. Backend becomes ready
+
+Once startup completes:
+```text
+FastAPI
+   ↓
+Uvicorn
+   ↓
+Listening on port 8000
+```
+
+Your Docker Compose mapping is:
+```text
+localhost:8000
+       ↓
+container:8000
+```
+
+#### Complete Startup Flow ⭐
+
+```text
+docker compose up --build
+          ↓
+Build backend Docker image
+          ↓
+Start API container
+          ↓
+Python + Uvicorn
+          ↓
+app/main.py
+          ↓
+Create FastAPI app
+          ↓
+Register API router
+          ↓
+api/v1/router.py
+          ↓
+Feature routes available
+          ↓
+DI Container wires dependencies
+          ↓
+Backend listens on :8000
+          ↓
+        READY
+```
+
+### Important distinction
+
+Startup flow:
+```text
+Docker → main.py → router → DI → server ready
+```
+
+Request flow:
+```text
+Frontend → API route → Service → Infrastructure → DB/AI/etc.
+```
+
+Important:-
+```text
+main.py      → starts/creates application
+router.py    → connects API routes
+container.py → wires dependencies
+Uvicorn      → runs the FastAPI application
+Docker       → provides the runtime environment
+```
