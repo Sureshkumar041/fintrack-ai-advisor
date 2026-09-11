@@ -390,3 +390,145 @@ There are **two different flows** happening in the application:
 
 #### AI testing flow
 `User → API → LangGraph → Agents → RAG + LLM → Reflection → API → User`
+
+## 4. System Architecture
+
+> Architecture = how the major parts of the system are organized and communicate with each other.
+
+#### Five major layers/components:
+```text
+User
+  ↓
+Frontend
+  ↓
+Backend
+  ↓
+AI Processing
+  ↓
+Data / External Services
+```
+
+1. Frontend — Next.js
+2. Backend — FastAPI
+3. Database Layer
+4. Redis
+`Redis is a fast in-memory data store.`
+
+5. Qdrant — Vector Database
+`Qdrant is used for vector search.`
+
+6. LangGraph
+- This is the AI workflow orchestration layer.
+
+**Orchestration** = coordinating multiple steps/components.
+
+```text
+              LangGraph
+                  │
+       ┌──────────┼──────────┐
+       ↓          ↓          ↓
+    Agent 1    Agent 2    Agent 3
+       │          │          │
+       └──────────┼──────────┘
+                  ↓
+              Final result
+```
+
+7. AI Agents
+> Agents perform specific AI-related tasks.
+
+For example:
+```text
+              AI Workflow
+                   │
+       ┌───────────┼────────────┐
+       ↓           ↓            ↓
+Test Generation  UI/UX     Context Retrieval
+    Agent         Agent          Agent
+```
+
+8. RAG
+> RAG connects your knowledge/data with the LLM.
+
+```text
+User Requirement
+       ↓
+Retrieve relevant information
+       ↓
+Qdrant
+       ↓
+Relevant Context
+       ↓
+LLM
+```
+
+9. LLM
+> The LLM is the actual language intelligence.
+
+```text
+Requirement
+     +
+Context
+     +
+Prompt
+     ↓
+    LLM
+     ↓
+Generated Output
+```
+
+10. Reflection / Audit
+
+After generation:
+```text
+Generated Test Cases
+        ↓
+Reflection / Audit
+        ↓
+Check quality
+        ↓
+Improve / validate
+        ↓
+Final Test Cases
+```
+
+This helps 'prevent the system from simply accepting the first AI response'.
+
+11. Docker
+Docker is not part of the business logic.
+
+> It provides the runtime environment for the different services.
+
+ ##### Complete System Architecture ⭐
+
+ ```text
+                          USER
+                           │
+                           ↓
+                 ┌─────────────────┐
+                 │ Next.js Frontend│
+                 └────────┬────────┘
+                          │
+                       HTTP/API
+                          │
+                          ↓
+                 ┌─────────────────┐
+                 │ FastAPI Backend │
+                 └────────┬────────┘
+                          │
+              ┌───────────┴───────────┐
+              ↓                       ↓
+       Normal Application        AI Workflow
+              │                       │
+              ↓                    LangGraph
+       Application Services            │
+              │               ┌────────┼────────┐
+              ↓               ↓        ↓        ↓
+       Infrastructure       Agents    RAG      LLM
+              │                         │
+        ┌─────┼─────┐                   ↓
+        ↓     ↓     ↓                Qdrant
+       DB   Redis  APIs
+        │
+    PostgreSQL
+ ```
