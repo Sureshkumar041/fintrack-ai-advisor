@@ -1080,3 +1080,291 @@ Depending on the feature, it may interact with:
 - AI agents
 - External services
 - Or several of them.
+
+## 8. LangGraph
+
+> LangGraph controls the sequence of AI steps and keeps the information/state between those steps.
+
+Instead of asking an LLM one question:
+```text
+Input → LLM → Output
+```
+
+Project needs multiple steps:
+```text
+Requirement
+    ↓
+Analyze
+    ↓
+Retrieve Context
+    ↓
+Generate Tests
+    ↓
+Review
+    ↓
+Improve
+    ↓
+Final Tests
+```
+LangGraph helps manage this workflow.
+
+### 1. Why do we need LangGraph?
+Imagine we `don't use LangGraph.`
+
+We might manually write:
+```text
+result1 = analyze(requirement)
+
+result2 = retrieve_context(result1)
+
+result3 = generate_tests(result2)
+
+result4 = review(result3)
+
+result5 = improve(result4)
+```
+As the workflow becomes bigger, this becomes difficult to manage.
+
+### 2. LangGraph uses a Graph
+
+Think of a graph like a flowchart:
+```text
+        START
+          ↓
+      Analyze
+          ↓
+    Retrieve Context
+          ↓
+    Generate Tests
+          ↓
+       Review
+       ↙    ↘
+   Good      Bad
+     ↓        ↓
+    END    Improve
+              ↓
+            Review
+```
+This is basically what a LangGraph workflow represents.
+
+### 3. Node
+
+> Node = a task/step.
+
+A Node is one step/function in the workflow.
+
+For example:
+```text
+Analyze Requirement
+Retrieve Context
+Generate Test Cases
+Review Test Cases
+```
+
+Each can be a node.
+```text
+Graph
+ ├── Analyze Node
+ ├── Retrieval Node
+ ├── Generation Node
+ └── Review Node
+```
+
+### 4. Edge
+
+An Edge defines where the workflow goes next.
+
+- The arrow is an edge.
+
+```text
+Node A ─────→ Node B
+        Edge
+```
+
+> connection/path between steps.
+
+### 5. Conditional Edge
+
+This is where LangGraph becomes powerful.
+
+```text
+              Review
+             /      \
+          Good      Bad
+           ↓         ↓
+          END      Improve
+                     ↓
+                   Review
+```
+
+### 6. State
+
+> State = information currently being carried through the workflow.
+
+### 7. Simple example
+
+> "Users should reset their password using email."
+
+Initial state:
+```text
+{
+    requirement: "Password reset using email"
+}
+```
+**Analyze node**
+
+Adds:
+```text
+{
+    requirement: "...",
+    analysis: "Password reset functionality"
+}
+```
+
+**Retrieval node**
+
+Adds:
+```text
+{
+    requirement: "...",
+    analysis: "...",
+    retrieved_context: [
+        "Previous password reset tests",
+        "Security requirements"
+    ]
+}
+```
+
+**Generation node**
+
+Adds:
+```text
+{
+    requirement: "...",
+    analysis: "...",
+    retrieved_context: "...",
+    generated_tests: [...]
+}
+```
+
+**Review node**
+
+Adds:
+```text
+{
+    ...
+    review_result: "Missing expired-token scenario"
+}
+```
+
+**Improve node**
+
+Updates:
+```text
+generated_tests
+```
+And the workflow eventually finishes.
+
+### 8. LangGraph in your project
+
+Now connect this to your AI Testing Agent.
+
+```text
+                    LangGraph
+                       │
+                 Shared State
+                       │
+        ┌──────────────┼──────────────┐
+        ↓              ↓              ↓
+   Requirement      Retrieval      Generation
+     Analysis          │              │
+                       ↓              ↓
+                     RAG            LLM
+                                      │
+                                      ↓
+                                   Review
+                                      │
+                                ┌─────┴─────┐
+                                ↓           ↓
+                              Good        Improve
+                                ↓           │
+                               END ←────────┘
+```
+This is the AI workflow orchestration we discussed earlier.
+
+### 9. LangGraph vs LLM
+
+#### LLM
+
+> LLM = intelligence/generation
+
+```text
+Input
+ ↓
+LLM
+ ↓
+Text/AI output
+```
+
+#### LangGraph
+
+> LangGraph = workflow orchestration
+
+```text
+Step 1
+ ↓
+Step 2
+ ↓
+Step 3
+ ↓
+Condition
+ ↓
+Step 4
+```
+
+>> LLM thinks/generates. LangGraph controls the workflow.
+
+### The 4 terms you must remember
+
+| Term      | Simple meaning                              |
+| --------- | ------------------------------------------- |
+| **Graph** | Complete workflow                           |
+| **Node**  | One step/task                               |
+| **Edge**  | Connection between steps                    |
+| **State** | Shared information carried through workflow |
+
+And:
+```text
+LangGraph
+   ↓
+Graph
+   ├── Nodes
+   ├── Edges
+   └── State
+```
+
+Where we are now
+```text
+Normal Backend
+Frontend
+   ↓
+FastAPI
+   ↓
+Service
+   ↓
+Infrastructure
+
+
+AI Backend
+Frontend
+   ↓
+FastAPI
+   ↓
+LangGraph
+   ↓
+Agents
+   ↓
+RAG + LLM
+   ↓
+Reflection
+```
