@@ -1,4 +1,4 @@
-1. AI Testing Agent — Project Overview
+## 1. AI Testing Agent — Project Overview
    
 What is this project?
 
@@ -219,3 +219,79 @@ Give that context to LLM
       ↓
 Generate better test cases
 ```
+
+#### The complete picture
+
+At a high level, your project is:
+```text
+                    USER
+                      │
+                      ↓
+              Next.js Frontend
+                      │
+                      ↓
+               FastAPI Backend
+                      │
+                      ↓
+                AI Workflow
+                  LangGraph
+                      │
+          ┌───────────┼───────────┐
+          ↓           ↓           ↓
+       Agents        RAG         LLM
+          │           │           │
+          └───────────┼───────────┘
+                      ↓
+                Reflection
+                      ↓
+                Audit/Validation
+                      ↓
+             Final Test Cases
+                      │
+                      ↓
+                 Frontend
+                      │
+                      ↓
+                    USER
+```
+
+## 2. Project Requirements
+
+#### Overall requirement map
+```text
+AI Testing Agent
+│
+├── P1 — Core
+│   ├── Test Case Generation
+│   │   └── Contextual Test Scenarios
+│   ├── UI/UX Analysis
+│   └── Historical Context Retrieval
+│
+├── P2 — Supporting
+│   ├── Multi-Layered Expected Results
+│   ├── Observability
+│   └── Azure Reuse
+│
+└── P3 — Additional
+    └── Traceability Agent
+```
+
+They work together:
+```text
+                Requirement
+                     ↓
+        Historical Context Retrieval
+                     ↓
+              AI/Agents
+                     ↓
+          Test Case Generation
+                     ↓
+       Multi-Layer Expected Results
+                     ↓
+          Reflection / Validation
+                     ↓
+             Final Test Cases
+                     ↓
+              Traceability
+```
+`And UI/UX Analysis can provide another source of testing context.`
