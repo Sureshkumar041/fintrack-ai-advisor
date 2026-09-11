@@ -1368,3 +1368,204 @@ RAG + LLM
    ↓
 Reflection
 ```
+
+## 9. Agent + State 🤖
+
+### 1. What is an Agent?
+
+An `Agent` is a specialized AI worker that performs a particular task.
+
+In this project, agents are used to perform tasks such as:
+```text
+Requirement Analysis
+       ↓
+Context Retrieval
+       ↓
+Test Case Generation
+       ↓
+Reflection / Review
+       ↓
+Final Output
+```
+
+Think:
+
+> Agent = worker that performs one AI task
+
+For example:
+
+***Test Case Generation Agent***
+
+Input:
+```text
+Requirement:
+User can reset password using registered email.
+```
+
+Agent thinks using the LLM + available context and produces:
+```text
+1. Verify reset works with valid email
+2. Verify unregistered email is rejected
+3. Verify expired reset link
+4. Verify already-used reset link
+5. Verify invalid email format
+```
+
+### 2. What is State?
+
+***State = shared information carried through the LangGraph workflow.***
+
+Imagine the workflow starts with: `Requirement`
+
+Then each node adds information:
+```text
+START
+  ↓
+State
+{
+  requirement
+}
+  ↓
+Analysis Agent
+{
+  requirement
+  analysis
+}
+  ↓
+RAG
+{
+  requirement
+  analysis
+  retrieved_context
+}
+  ↓
+Test Agent
+{
+  requirement
+  analysis
+  retrieved_context
+  generated_tests
+}
+  ↓
+Reflection
+{
+  requirement
+  analysis
+  retrieved_context
+  generated_tests
+  review_result
+}
+```
+
+So **State is like a shared notebook** used by all steps.
+
+### 3. Agent vs State
+
+This distinction is very important:
+| Concept       | Meaning                  |
+| ------------- | ------------------------ |
+| **Agent**     | Does the work            |
+| **State**     | Stores the information   |
+| **LLM**       | Provides AI intelligence |
+| **LangGraph** | Controls the workflow    |
+
+Simple analogy:
+```text
+LangGraph  → Manager
+Agent      → Employee
+LLM        → Employee's intelligence
+State      → Shared notebook
+```
+
+### 4. How Agents use State
+
+Suppose:
+```text
+State
+├── requirement
+├── retrieved_context
+├── generated_tests
+└── review_result
+```
+
+A generation agent might:
+```text
+Read:
+  requirement
+  retrieved_context
+
+Do:
+  LLM-based test generation
+
+Write:
+  generated_tests
+```
+
+Then Reflection reads:
+```text
+generated_tests
+```
+
+and writes:
+```text
+review_result
+```
+
+Then another node can decide:
+```text
+Review result
+   ↓
+Good? ── Yes → END
+   │
+   No
+   ↓
+Improve tests
+```
+
+### 5. Why State is important in this project
+
+Without state:
+```text
+Agent 1 → output
+Agent 2 → doesn't know Agent 1's output
+Agent 3 → doesn't know previous work
+```
+
+With state:
+```text
+Agent 1
+  ↓
+updates State
+  ↓
+Agent 2 reads State
+  ↓
+updates State
+  ↓
+Agent 3 reads State
+```
+This is what makes the workflow multi-step and stateful.
+
+> Stateful = the workflow remembers information from previous steps.
+
+### 6. In project
+
+### The key picture to remember
+
+```text
+                 ┌──────────────┐
+                 │    STATE     │
+                 │ requirement  │
+                 │ context      │
+                 │ tests        │
+                 │ review       │
+                 └──────┬───────┘
+                        │
+          ┌─────────────┼─────────────┐
+          ↓             ↓             ↓
+      Agent 1        Agent 2       Agent 3
+      Analyze        Generate      Review
+          │             │             │
+          └─────────────┴─────────────┘
+                        ↓
+                 Updated State
+```
