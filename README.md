@@ -532,3 +532,199 @@ Docker is not part of the business logic.
         │
     PostgreSQL
  ```
+
+ ## 5. Backend Structure
+
+ Backend is basically organized like this:
+ ```text
+backend/
+└── app/
+    ├── main.py
+    ├── api/
+    ├── application/
+    ├── domain/
+    ├── infrastructure/
+    └── core/
+ ```
+
+ > Each folder has one responsibility.
+
+ ### 1. `main.py` — Application Entry Point
+
+ ### 2. `api/` — HTTP/API Layer
+
+Responsibilities:
+
+- Receive request
+- Validate request
+- Call application/service layer
+- Convert errors to HTTP responses
+- Return response
+
+### 3. `application/` — Business/Application Logic
+
+handles:
+
+- Login
+- Logout
+........
+
+It doesn't directly care whether the database is PostgreSQL, MongoDB, etc.
+- It depends on `interfaces/ports.`
+
+```text
+API
+ ↓
+Application Service
+ ↓
+Domain Ports
+```
+
+### 4. `domain/` — Core Business Definitions
+
+Inside domain like:
+```text
+domain/
+├── auth/
+├── requirements/
+├── projects/
+├── ...
+```
+
+Inside each domain you'll find:
+```text
+models.py   - Defines business data structures.
+ports.py    - Defines interfaces/contracts.
+enums.py    - Defines domain/application-specific errors.
+errors.py   - Defines fixed allowed values.
+```
+
+### 5. `infrastructure/` — External/Technical Implementation
+
+For Auth:
+```text
+infrastructure/auth/
+├── sqlalchemy_user_repository.py
+├── orm_models.py
+├── bcrypt_password_hasher.py
+├── jwt_token_service.py
+├── redis_access_token_blocklist.py
+├── redis_refresh_session_store.py
+└── bootstrap.py
+```
+
+This is where the **actual implementations** live.
+
+### 6. `core/` — Application Infrastructure / Configuration
+
+This contains things needed to run and configure the application.
+
+From the files
+```text
+core/
+├── config.py
+├── container.py
+├── logging.py
+└── ...
+```
+
+#### config.py
+
+```text
+Database URL
+Redis URL
+Qdrant URL
+JWT configuration
+CORS
+Environment
+```
+
+#### container.py
+
+This is the ***Dependency Injection container.***
+> It wires components together.
+
+```text
+db_session_factory
+       ↓
+SqlAlchemyUserRepository
+       ↓
+AuthService
+```
+
+### 7. api/v1/router.py
+
+This is the central API router.
+
+### 8. The Backend Request Flow ⭐
+
+```text
+Frontend
+   ↓
+main.py
+   ↓
+api/v1/router.py
+   ↓
+api/v1/<feature>.py
+   ↓
+application/<feature>/service.py
+   ↓
+domain/<feature>/ports.py
+   ↓
+infrastructure/<feature>/
+   ↓
+Database / Redis / Qdrant / External Service
+```
+
+### 9. Auth Example — Actual Project
+
+```text
+POST /auth/login
+       ↓
+api/v1/auth.py
+       ↓
+AuthService
+       ↓
+UserRepository
+       ↓
+SqlAlchemyUserRepository
+       ↓
+UserRecord
+       ↓
+SQLAlchemy
+       ↓
+PostgreSQL
+```
+
+And:
+
+```text
+container.py
+       ↓
+bootstrap.py
+       ↓
+wires AuthService dependencies
+```
+
+### Simple Meaning of Each Folder
+
+| Folder            | Simple meaning                     |
+| ----------------- | ---------------------------------- |
+| `main.py`         | Backend starts here                |
+| `api/`            | Handles HTTP requests/responses    |
+| `application/`    | Application/business workflow      |
+| `domain/`         | Business rules, models, contracts  |
+| `infrastructure/` | Actual DB/external implementations |
+| `core/`           | Configuration + dependency wiring  |
+
+
+#### One-line memory trick
+
+```text
+API → receives
+Application → processes
+Domain → defines
+Infrastructure → connects
+Core → configures/wires
+Main → starts
+```
