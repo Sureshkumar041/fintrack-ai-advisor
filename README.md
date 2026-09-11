@@ -295,3 +295,98 @@ They work together:
               Traceability
 ```
 `And UI/UX Analysis can provide another source of testing context.`
+
+## 3. User Flow
+
+> The steps a user follows while using the application.
+
+```text
+User
+ ↓
+Login
+ ↓
+Dashboard
+ ↓
+Provide testing input
+ ↓
+AI processes the input
+ ↓
+Test scenarios generated
+ ↓
+Review results
+ ↓
+Use / export final test cases
+```
+
+Types:
+
+1. User opens the application
+2. Login
+3. User enters testing requirements
+4. User starts test generation
+5. Backend starts the AI workflow
+6. Retrieve relevant context
+7. AI generates test scenarios
+8. Reflection / Validation
+9. Backend returns the result
+10. Frontend displays the result
+
+
+Complete User Flow ⭐
+```text
+                         USER
+                           │
+                           ↓
+                    Next.js Frontend
+                           │
+                           ↓
+                       Login
+                           │
+                           ↓
+                    FastAPI Backend
+                           │
+                           ↓
+                    Authentication
+                           │
+                           ↓
+                  Testing Requirement
+                           │
+                           ↓
+                    FastAPI API
+                           │
+                           ↓
+                      LangGraph
+                           │
+             ┌─────────────┴─────────────┐
+             ↓                           ↓
+      Context Retrieval             AI Agents
+             ↓                           ↓
+          Qdrant                      LLM
+             │                           │
+             └─────────────┬─────────────┘
+                           ↓
+                    Generate Tests
+                           ↓
+                    Reflection/Audit
+                           ↓
+                     Final Results
+                           │
+                           ↓
+                    FastAPI Response
+                           │
+                           ↓
+                    Next.js Frontend
+                           │
+                           ↓
+                          USER
+```
+
+### One important distinction
+
+There are **two different flows** happening in the application:
+
+#### Authentication flow
+`User → API → AuthService → PostgreSQL/Redis → API → User`
+
+#### AI testing flow
+`User → API → LangGraph → Agents → RAG + LLM → Reflection → API → User`
