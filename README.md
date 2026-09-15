@@ -1569,3 +1569,432 @@ This is what makes the workflow multi-step and stateful.
                         ↓
                  Updated State
 ```
+
+## 10. Project/ai_testing_agent
+
+### 1. There are actually 2 levels of State
+
+Project has:
+
+#### A. `PipelineState` — **master workflow state**
+
+File:
+
+```text
+backend/app/infrastructure/orchestration/graph.py
+```
+
+This controls the overall AI pipeline:
+```text
+Requirement
+   ↓
+Retrieve Context
+   ↓
+Build Prompt
+   ↓
+Generate Tests
+   ↓
+Decision
+   ↓
+Checkpoint
+```
+
+Its state contains things like:
+```text
+requirement
+profile
+context
+final_prompt
+generation_result
+decision
+checkpoint
+```
+
+So:
+> PipelineState = state for the complete AI pipeline.
+
+#### B. GenerationState — Test Generation Agent state
+
+File:
+
+```text
+backend/app/infrastructure/test_generation_agent/graph.py
+```
+
+This is the one we should focus on for **Agent + State.**
+
+It contains:
+```text
+class GenerationState(TypedDict):
+    requirement
+    context
+    profile
+    overrides
+
+    unit_result
+    unit_error
+
+    api_result
+    api_error
+
+    bdd_result
+    bdd_error
+
+    e2e_result
+    e2e_error
+
+    edge_case_result
+    edge_case_error
+```
+
+Think of it as:
+```text
+                 GenerationState
+                       │
+        ┌──────────────┼──────────────┐
+        ↓              ↓              ↓
+      Unit            API            BDD
+      Agent           Agent          Agent
+        ↓              ↓              ↓
+     result         result         result
+
+        ┌──────────────┴──────────────┐
+        ↓                             ↓
+      E2E                       Edge Case
+      Agent                         Agent
+```
+
+### 2. What are the "Agents" here?
+
+Project has 5 test generators.
+
+```text
+backend/app/infrastructure/test_generation_agent/bootstrap.py
+```
+
+*****Specifically:*****
+```text
+UnitTestCaseGenerator
+ApiTestCaseGenerator
+BddScenarioGenerator
+E2eTestCaseGenerator
+EdgeCaseTestGenerator
+```
+
+> Each generator acts as a specialized test-generation agent.
+
+Their files are:
+```text
+infrastructure/test_generation_agent/generators/
+
+├── unit_generator.py
+├── api_generator.py
+├── bdd_generator.py
+├── e2e_generator.py
+└── edge_case_generator.py
+```
+
+### 3. What does each Agent receive?
+
+All five agents receive the same common input:
+```text
+Requirement
+Context
+Testing Profile
+Generation Overrides
+```
+
+From the graph:
+```python
+generator.generate(
+    state["requirement"],
+    state["context"],
+    state["profile"],
+    state["overrides"]
+)
+```
+
+So:
+```text
+                 GenerationState
+                       │
+        ┌──────────────┼──────────────┐
+        │              │              │
+   requirement      context        profile
+        │              │              │
+        └──────────────┼──────────────┘
+                       ↓
+             Each Generator Agent
+```
+
+### 4. What does an Agent return?
+
+For example, Unit Agent:
+```text
+requirement
+   +
+context
+   +
+profile
+   ↓
+UnitTestCaseGenerator
+   ↓
+LLM
+   ↓
+GeneratorResult
+```
+
+The result is stored in:
+```text
+unit_result
+```
+
+API generator:
+```text
+ApiTestCaseGenerator
+      ↓
+api_result
+```
+
+BDD: ***Behavior-Driven Development***
+```text
+BddScenarioGenerator
+      ↓
+bdd_result
+```
+
+### 5. The important part: Parallel execution
+
+```text
+                       START
+                         │
+          ┌──────────────┼──────────────┐
+          ↓              ↓              ↓
+        Unit            API            BDD
+          │              │              │
+          ↓              ↓              ↓
+        Result         Result         Result
+
+          ↓              ↓              ↓
+        E2E          Edge Case
+          │              │
+          ↓              ↓
+        Result         Result
+                         │
+                        END
+```
+
+- five independent generators can execute in parallel.
+
+Why?
+
+Because they don't depend on each other's results.
+
+- Unit doesn't need API result.
+
+- API doesn't need BDD result.
+
+- BDD doesn't need E2E result.
+
+That's why the code comment says:
+
+> "the five generators can run in any order or in parallel."
+
+### 6. How does State actually move?
+
+`TestGenerationService.generate()` starts the graph with:
+
+```text
+GenerationState
+{
+    requirement,
+    context,
+    profile,
+    overrides,
+
+    unit_result = None,
+    api_result = None,
+    bdd_result = None,
+    e2e_result = None,
+    edge_case_result = None
+}
+```
+
+Then **LangGraph sends this state** to the generator nodes.
+
+For example:
+```text
+                 State
+                   │
+                   ├────────→ Unit Agent
+                   │             │
+                   │             ↓
+                   │        unit_result
+                   │
+                   ├────────→ API Agent
+                   │             │
+                   │             ↓
+                   │         api_result
+                   │
+                   ├────────→ BDD Agent
+                   │             │
+                   │             ↓
+                   │         bdd_result
+                   │
+                   ├────────→ E2E Agent
+                   │
+                   └────────→ Edge Agent
+```
+Each node returns only its own update.
+
+For example:
+```python
+return {result_key: result}
+```
+
+For Unit:
+```python
+{
+    "unit_result": result
+}
+```
+
+For API:
+```python
+{
+    "api_result": result
+}
+```
+
+LangGraph `combines those updates into the final state`.
+
+### 7. What happens if one Agent fails?
+
+This project deliberately isolates failures.
+
+Inside `_make_node()`:
+
+```python
+try:
+    result = generator.generate(...)
+    return {result_key: result}
+
+except Exception as error:
+    return {error_key: str(error)}
+```
+
+Example:
+```text
+Unit       → ✅
+API        → ✅
+BDD        → ❌
+E2E        → ✅
+Edge Case  → ✅
+```
+
+State becomes:
+```text
+unit_result       → result
+api_result        → result
+bdd_result        → None
+bdd_error         → error message
+e2e_result        → result
+edge_case_result  → result
+```
+
+So one failed generator **doesn't kill the other generators**.
+
+That's a useful design choice.
+
+### 8. Where does the actual AI/LLM happen?
+
+The LangGraph node itself isn't the LLM.
+
+The node calls:
+```python
+generator.generate(...)
+```
+> The node asks the generator to generate something; the concrete generator is responsible for translating that request into a call to the structured completion client, which actually communicates with the LLM and returns the structured result.
+
+The wiring happens in:
+```text
+bootstrap.py
+```
+
+Conceptually:
+```text
+LangGraph
+    ↓
+UnitTestCaseGenerator
+    ↓
+StructuredCompletionClient
+    ↓
+Anthropic
+    ↓
+LLM
+    ↓
+Generated test cases
+```
+
+So remember:
+```text
+LangGraph → controls workflow
+Agent     → performs specialized task
+LLM       → provides AI generation
+State     → carries information/results
+```
+
+### 9. One important project-specific correction
+
+Earlier we used an example like:
+```text
+Analyze
+ ↓
+RAG
+ ↓
+Generate
+ ↓
+Reflection
+```
+
+Also, the code explicitly says the current master pipeline has:
+> No reflection/retry loop yet.
+
+#### Final mental model
+
+```text
+                    LangGraph
+                       │
+              PipelineState
+                       │
+       Requirement → Retrieve → Prompt
+                       │
+                       ↓
+                Test Generation
+                       │
+                GenerationState
+                       │
+       ┌───────────────┼───────────────┐
+       ↓               ↓               ↓
+     Unit              API             BDD
+     Agent             Agent           Agent
+       │               │               │
+       └───────────────┼───────────────┘
+                       ↓
+                    E2E / Edge
+                       │
+                       ↓
+                TestGenerationResult
+                       │
+                       ↓
+                    Decision
+                       │
+                       ↓
+                  Checkpoint
+```
+
+#### In one sentence:
+
+> State carries the data; Agents perform specialized work; LangGraph controls how that work is executed.
+
+
