@@ -1997,4 +1997,109 @@ Also, the code explicitly says the current master pipeline has:
 
 > State carries the data; Agents perform specialized work; LangGraph controls how that work is executed.
 
+## 11. RAG — Retrieval-Augmented Generation
 
+### 1. First: What problem does RAG solve?
+
+An LLM by itself knows general information:
+
+```text
+Requirement
+    ↓
+   LLM
+    ↓
+Generic test cases
+```
+But your project needs project-specific context.
+
+For example:
+> "Generate tests for our payment API."
+
+The LLM should know things like:
+
+- Existing tests
+- Past bugs
+- Business rules
+- Architecture
+- Requirements
+- Swagger/API definitions
+- SQL/schema information
+
+That's where RAG comes in.
+> RAG = retrieve relevant project knowledge first, then give that knowledge to the LLM.
+
+### 2. Project's RAG flow
+
+ actual implementation is:
+ ```text
+ Documents
+   ↓
+Load
+   ↓
+Chunk
+   ↓
+Embedding
+   ↓
+Index
+   ↓
+         ← Query
+           ↓
+      Retrieve
+           ↓
+       Rerank
+           ↓
+    Build Context
+           ↓
+     ContextPackage
+           ↓
+    Test Generation
+           ↓
+          LLM
+ ```
+
+ There are two different phases:
+
+ #### Ingestion
+ Preparing knowledge:
+ ```text
+ Document
+ ↓
+Loader
+ ↓
+Chunks
+ ↓
+Embeddings
+ ↓
+Index
+ ```
+
+#### Query / Retrieval
+
+Finding knowledge when needed:
+```text
+Requirement
+ ↓
+Embedding
+ ↓
+Retrieve similar chunks
+ ↓
+Rerank
+ ↓
+ContextPackage
+ ↓
+LLM
+```
+
+### 3. Step 1 — Document Loader
+
+Actual file:
+```bash
+infrastructure/rag_framework/loaders/
+```
+
+There are loaders for:
+```text
+Plain text
+Swagger
+SQL
+```
